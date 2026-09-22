@@ -166,6 +166,16 @@ function DocsPane({ ctx }) {
                 style: { fontSize: 11, color: 'var(--ui-text-tertiary)' },
                 children: lastDoc.ecosystem,
               }),
+              lastDoc.warning
+                ? jsx('div', {
+                    style: {
+                      fontSize: 11,
+                      lineHeight: 1.4,
+                      color: 'var(--ui-text-tertiary)',
+                    },
+                    children: lastDoc.warning,
+                  })
+                : null,
               lastDoc.description
                 ? jsx('div', {
                     style: { fontSize: 12, lineHeight: 1.4 },

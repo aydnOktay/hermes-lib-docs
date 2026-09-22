@@ -11,7 +11,7 @@ tier: community
 category: tools
 requires_hermes: ">=0.21"
 docs_url: https://github.com/aydnOktay/hermes-lib-docs
-version: "0.1.0"
+version: "0.1.1"
 platforms: []
 capabilities:
   provides_tools:

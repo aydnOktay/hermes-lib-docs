@@ -29,9 +29,16 @@ Restart Hermes. Pane: **lib docs**. Chip: `docs N`.
 
 ```
 /docs react
+/docs npm react
 /docs pypi fastapi
 /docs recent
 ```
+
+`auto` probes **both** registries. If the name exists on npm and PyPI
+(e.g. `react`), it prefers the likely ecosystem (scoped/`@` → npm,
+`snake_case` → PyPI, otherwise npm) and adds a warning + `also_on`.
+Force with `/docs npm …` or `/docs pypi …`. Slash replies use a markdown
+summary (not a raw JSON dump).
 
 Tools: `lib_docs_resolve`, `lib_docs_get`, `lib_docs_recent`.
 
@@ -44,4 +51,5 @@ State: `$HERMES_HOME/plugin-data/lib-docs/recent.json`
 - Unique Python modules (`docs_store` / `docs_fetch`, not `store`)
 - Stdlib `urllib` only (no httpx required)
 - README truncated; no API keys
+- Name-collision aware auto mode
 - Not a substitute for private/internal docs

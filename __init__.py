@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -15,26 +16,50 @@ import docs_schemas
 import docs_tools
 
 
+def _slash_text(raw: object) -> str:
+    """Prefer markdown summary over raw tool JSON in the chat transcript."""
+    if not isinstance(raw, str):
+        return str(raw)
+    text = raw.strip()
+    if not text.startswith("{"):
+        return text
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return text
+    if not isinstance(data, dict):
+        return text
+    md = data.get("markdown")
+    if isinstance(md, str) and md.strip():
+        return md.strip()
+    if data.get("ok") is False:
+        return f"(error: {data.get('error') or 'failed'})"
+    return text
+
+
 def _handle_slash(ctx, raw_args: str) -> str:
     parts = (raw_args or "").strip().split()
     if not parts or parts[0].lower() in {"recent", "list", "show"}:
-        return ctx.dispatch_tool("lib_docs_recent", {"markdown": True})
+        return _slash_text(ctx.dispatch_tool("lib_docs_recent", {"markdown": True}))
     if parts[0].lower() in {"help", "?"}:
         return (
             "Usage:\n"
             "  /docs                 — recent lookups\n"
-            "  /docs <package>       — fetch docs (auto npm/pypi)\n"
+            "  /docs <package>       — fetch docs (auto: probe both, prefer likely)\n"
             "  /docs npm <package>   — force npm\n"
-            "  /docs pypi <package>  — force PyPI"
+            "  /docs pypi <package>  — force PyPI\n"
+            "Tip: names like `react` exist on both registries — use npm|pypi to force."
         )
     ecosystem = "auto"
     name = parts[0]
     if parts[0].lower() in {"npm", "pypi", "auto"} and len(parts) >= 2:
         ecosystem = parts[0].lower()
         name = parts[1]
-    return ctx.dispatch_tool(
-        "lib_docs_get",
-        {"package": name, "ecosystem": ecosystem, "markdown": True},
+    return _slash_text(
+        ctx.dispatch_tool(
+            "lib_docs_get",
+            {"package": name, "ecosystem": ecosystem, "markdown": True},
+        )
     )
 
 

@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-USER_AGENT = "hermes-lib-docs/0.1 (+https://github.com/aydnOktay/hermes-lib-docs)"
+USER_AGENT = "hermes-lib-docs/0.1.1 (+https://github.com/aydnOktay/hermes-lib-docs)"
 TIMEOUT = 20
 MAX_BODY = 2_000_000
 MAX_README = 12_000
@@ -269,27 +269,70 @@ def resolve(query: str, ecosystem: str = "auto", limit: int = 8) -> list[dict[st
     return out
 
 
+def _try_get(
+    ecosystem: str, name: str, version: str | None
+) -> tuple[dict[str, Any] | None, str | None]:
+    try:
+        if ecosystem == "npm":
+            return get_npm(name, version), None
+        if ecosystem == "pypi":
+            return get_pypi(name, version), None
+        return None, f"unknown ecosystem: {ecosystem}"
+    except Exception as exc:
+        return None, str(exc)
+
+
+def _with_collision_warning(
+    primary: dict[str, Any], secondary: dict[str, Any]
+) -> dict[str, Any]:
+    out = dict(primary)
+    out["also_on"] = {
+        "ecosystem": secondary.get("ecosystem"),
+        "package": secondary.get("package"),
+        "version": secondary.get("version") or "",
+        "description": (secondary.get("description") or "")[:240],
+        "homepage": secondary.get("homepage") or "",
+    }
+    pkg = primary.get("package") or ""
+    out["warning"] = (
+        f"Same name also exists on {secondary.get('ecosystem')} "
+        f"({secondary.get('package')}@{secondary.get('version') or '?'}). "
+        f"Using {primary.get('ecosystem')}. Force with /docs npm|pypi {pkg}."
+    )
+    return out
+
+
 def get_docs(package: str, ecosystem: str = "auto", version: str | None = None) -> dict[str, Any]:
     name = normalize_package(package)
     if not name:
         return {"ok": False, "error": "invalid package name"}
     eco = (ecosystem or "auto").lower()
-    if eco == "auto":
-        eco = guess_ecosystem(name)
-    try:
-        if eco == "pypi":
-            return get_pypi(name, version)
-        if eco == "npm":
-            return get_npm(name, version)
+
+    if eco in {"npm", "pypi"}:
+        doc, err = _try_get(eco, name, version)
+        if doc:
+            return doc
+        return {"ok": False, "error": err or "not found"}
+
+    if eco != "auto":
         return {"ok": False, "error": f"unknown ecosystem: {ecosystem}"}
-    except Exception as exc:
-        # auto fallback: try the other registry once
-        if (ecosystem or "auto").lower() == "auto":
-            other = "pypi" if eco == "npm" else "npm"
-            try:
-                if other == "pypi":
-                    return get_pypi(name, version)
-                return get_npm(name, version)
-            except Exception as exc2:
-                return {"ok": False, "error": str(exc2)}
-        return {"ok": False, "error": str(exc)}
+
+    # auto: probe both registries so name collisions (e.g. react) do not
+    # silently return the wrong ecosystem via one-sided fallback.
+    preferred = guess_ecosystem(name)
+    other = "pypi" if preferred == "npm" else "npm"
+    pref_doc, pref_err = _try_get(preferred, name, version)
+    other_doc, other_err = _try_get(other, name, version)
+
+    if pref_doc and other_doc:
+        return _with_collision_warning(pref_doc, other_doc)
+    if pref_doc:
+        return pref_doc
+    if other_doc:
+        out = dict(other_doc)
+        out["warning"] = (
+            f"{preferred} lookup failed; using {other}. "
+            f"Force with /docs {preferred}|{other} {name}."
+        )
+        return out
+    return {"ok": False, "error": pref_err or other_err or "not found"}

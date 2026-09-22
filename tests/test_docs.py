@@ -52,6 +52,19 @@ def _fake_fetch(url: str) -> bytes:
                 "readme": "# React\n\nHello hooks.",
             }
         ).encode()
+    if "pypi.org/pypi/react" in u:
+        return json.dumps(
+            {
+                "info": {
+                    "name": "react",
+                    "version": "4.3.0",
+                    "summary": "Server-side rendering of React components",
+                    "description": "# python-react\n\nNot Facebook React.",
+                    "home_page": "https://github.com/markfinger/python-react",
+                    "license": "MIT",
+                }
+            }
+        ).encode()
     if "pypi.org/pypi/fastapi" in u:
         return json.dumps(
             {
@@ -94,18 +107,35 @@ def test_get_pypi() -> None:
     assert "Great docs" in doc["readme"]
 
 
+def test_auto_prefers_npm_on_collision() -> None:
+    doc = docs_fetch.get_docs("react", ecosystem="auto")
+    assert doc["ok"] is True
+    assert doc["ecosystem"] == "npm"
+    assert doc["version"] == "19.0.0"
+    assert "also_on" in doc
+    assert doc["also_on"]["ecosystem"] == "pypi"
+    assert "warning" in doc
+    assert "pypi" in doc["warning"].lower()
+    md = docs_store.to_markdown_doc(doc)
+    assert "Hello hooks" in md
+    assert "Also on pypi" in md or "also exists" in md.lower()
+
+
 def test_guess() -> None:
     assert docs_fetch.guess_ecosystem("@scope/pkg") == "npm"
     assert docs_fetch.guess_ecosystem("my_package") == "pypi"
+    assert docs_fetch.guess_ecosystem("react") == "npm"
 
 
 def test_tools_json() -> None:
     data = json.loads(docs_tools.lib_docs_resolve({"query": "react", "ecosystem": "npm"}, extra="x"))
     assert data["ok"] is True
     assert data["count"] >= 1
-    got = json.loads(docs_tools.lib_docs_get({"package": "react", "ecosystem": "npm"}))
+    got = json.loads(docs_tools.lib_docs_get({"package": "react", "ecosystem": "auto"}))
     assert got["ok"] is True
+    assert got["ecosystem"] == "npm"
     assert "markdown" in got
+    assert "warning" in got
     recent = json.loads(docs_tools.lib_docs_recent({}))
     assert recent["ok"] is True
     assert recent["count"] >= 1
@@ -120,6 +150,7 @@ if __name__ == "__main__":
     test_resolve_npm()
     test_get_npm()
     test_get_pypi()
+    test_auto_prefers_npm_on_collision()
     test_guess()
     test_tools_json()
     test_invalid_package()

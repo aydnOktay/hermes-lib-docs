@@ -115,6 +115,17 @@ def to_markdown_doc(doc: dict[str, Any]) -> str:
     lines = [
         f"# {doc.get('package')} `{doc.get('version')}` ({doc.get('ecosystem')})",
     ]
+    if doc.get("warning"):
+        lines.append("")
+        lines.append(f"> {doc['warning']}")
+    also = doc.get("also_on")
+    if isinstance(also, dict) and also.get("ecosystem"):
+        lines.append("")
+        lines.append(
+            f"Also on {also.get('ecosystem')}: "
+            f"`{also.get('package')}`@{also.get('version') or '?'} "
+            f"— {(also.get('description') or '')[:120]}"
+        )
     if doc.get("description"):
         lines.append("")
         lines.append(str(doc["description"]))
