@@ -1,0 +1,23 @@
+name: lib-docs
+version: 0.1.0
+manifest_version: 1
+api_version: 1
+description: >
+  Look up current library docs from public npm and PyPI registries (no API
+  keys). Resolve a package name, fetch README and metadata, keep recent
+  lookups on the Desktop pane. Disclosure — HTTPS calls to registry.npmjs.org
+  and pypi.org only; package name and version leave the machine.
+author: aydnOktay
+license: MIT
+homepage: https://github.com/aydnOktay/hermes-lib-docs
+requires_hermes: ">=0.21"
+tags: [desktop, docs, npm, pypi, tools]
+provides_tools:
+  - lib_docs_resolve
+  - lib_docs_get
+  - lib_docs_recent
+config_schema:
+  max_recent:
+    type: int
+    default: 20
+    description: Maximum recent lookups kept on disk.
